@@ -22,7 +22,7 @@ import org.springframework.web.client.HttpClientErrorException;
 
 @Service
 public class WeatherService {
-
+    private final RestTemplate restTemplate = new RestTemplate();
     // TODO #4A: Create a new instance of RestTemplate
     private static final String API_KEY = "e545f065756897815298117073bed7af"; // see note above
     private static final String GEO_URL = "http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={key}";
@@ -30,10 +30,13 @@ public class WeatherService {
 
     public WeatherData getCurrentWeather(String city) {
         try {
-            // Step 1: Call Geocoding API to get coordinates using city name
-            // TODO #4B: replace null with the necessary use of your RestTemplate instance
-            //  and pass in all necessary arguments for the endpoint, class, and the placeholders in GEO_URL
-            GeocodeResult[] geoResults = null;
+            // Get coordinates for the city
+            GeocodeResult[] geoResults = restTemplate.getForObject(
+                    GEO_URL,
+                    GeocodeResult[].class,
+                    city,
+                    API_KEY
+            );
 
             if (geoResults == null || geoResults.length == 0) {
                 throw new RuntimeException("City not found: " + city);
@@ -42,31 +45,37 @@ public class WeatherService {
             double lat = geoResults[0].lat();
             double lon = geoResults[0].lon();
 
-            // Step 2: Call Weather API using lat/lon
-            // TODO #4C: replace null with the necessary use of your RestTemplate instance
-            //  and pass in all necessary arguments for the endpoint, class, and the placeholders in WEATHER_URL
-            WeatherData weather = null;
+            // Get weather using the coordinates
+            WeatherData weather = restTemplate.getForObject(
+                    WEATHER_URL,
+                    WeatherData.class,
+                    lat,
+                    lon,
+                    API_KEY
+            );
 
             if (weather == null) {
-                throw new RuntimeException("No weather data received for coordinates (" + lat + ", " + lon + ")");
+                throw new RuntimeException(
+                        "No weather data received for coordinates (" + lat + ", " + lon + ")"
+                );
             }
 
             return weather;
 
-        } catch (
-                HttpClientErrorException e) {
-            // Catch HTTP status errors (404, 401, 500, etc.) from RestTemplate
+        } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == 404) {
-                throw new RuntimeException("Location or weather resource not found: " + city);
+                throw new RuntimeException(
+                        "Location or weather resource not found: " + city
+                );
             } else {
                 throw new RuntimeException("API Error: " + e.getMessage());
             }
         } catch (RuntimeException e) {
-            // Re-throw custom runtime exceptions from the try block so their messages don't
-            // get combined with the general Exception catch below.
             throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to get weather data: " + e.getMessage());
+            throw new RuntimeException(
+                    "Failed to get weather data: " + e.getMessage()
+            );
         }
     }
 }
